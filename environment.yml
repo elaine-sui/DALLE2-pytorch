@@ -1,0 +1,38 @@
+name: dalle2
+channels:
+  - defaults
+dependencies:
+- python>=3.8
+- pip>=21
+- scikit-image=0.18.1
+- pip:
+   - accelerate
+   - click
+   - open-clip-torch>=2.0.0,<3.0.0
+   - clip-anytorch>=2.4.0
+   - coca-pytorch>=0.0.5
+   - ema-pytorch>=0.0.7
+   - einops>=0.4
+   - einops-exts>=0.0.3
+   - embedding-reader
+   - kornia>=0.5.4
+   - numpy
+   - packaging
+   - pillow
+   - pydantic
+   - pytorch-warmup
+   - resize-right>=0.0.2
+   - rotary-embedding-torch
+   - torch>=1.10
+   - torchvision
+   - tqdm
+   - vector-quantize-pytorch
+   - x-clip>=0.4.4
+   - wandb
+   - webdataset>=0.2.5
+   - fsspec>=2022.1.0
+   - torchmetrics[image]>=0.8.0
+   - omegaconf==2.1.1
+   - transformers
+   - pytorch_lightning
+prefix: /pasteur/u/esui/miniconda3/envs/dalle2

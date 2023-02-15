@@ -111,12 +111,13 @@ class WandbLogger(BaseLogger):
         assert self.entity is not None, "wandb_entity must be specified for wandb logger"
         assert self.project is not None, "wandb_project must be specified for wandb logger"
         self.wandb = import_or_print_error('wandb', '`pip install wandb` to use the wandb logger')
-        os.environ["WANDB_SILENT"] = "true"
+        os.environ["WANDB_SILENT"] = "false" #"true"
         # Initializes the wandb run
         init_object = {
             "entity": self.entity,
             "project": self.project,
-            "config": {**full_config.dict(), **extra_config}
+            # "config": {**full_config.dict(), **extra_config}
+            "config": {**full_config, **extra_config}
         }
         if self.run_name is not None:
             init_object['name'] = self.run_name

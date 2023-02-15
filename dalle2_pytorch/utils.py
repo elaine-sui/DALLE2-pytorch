@@ -1,6 +1,6 @@
 import time
 import importlib
-
+import collections
 # helper functions
 
 def exists(val):
@@ -33,3 +33,14 @@ def import_or_print_error(pkg_name, err_str = None):
         if exists(err_str):
             print(err_str)
         exit()
+
+def flatten(d, parent_key="", sep="."):
+    """flatten a nested dictionary"""
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)

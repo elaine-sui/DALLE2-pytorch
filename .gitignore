@@ -1,6 +1,6 @@
 # default experiment tracker data
 .tracker-data/
-
+wandb/
 # Configuration Files
 configs/*
 !configs/*.example

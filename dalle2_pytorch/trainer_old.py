@@ -434,7 +434,7 @@ class DecoderTrainer(nn.Module):
     def __init__(
         self,
         decoder,
-        # accelerator = None,
+        accelerator = None,
         dataloaders = None,
         use_ema = True,
         lr = 1e-4,
@@ -451,7 +451,7 @@ class DecoderTrainer(nn.Module):
         assert isinstance(decoder, Decoder)
         ema_kwargs, kwargs = groupby_prefix_and_trim('ema_', kwargs)
 
-        # self.accelerator = default(accelerator, Accelerator)
+        self.accelerator = default(accelerator, Accelerator)
 
         self.num_unets = len(decoder.unets)
 
@@ -507,19 +507,19 @@ class DecoderTrainer(nn.Module):
 
         self.register_buffer('steps', torch.tensor([0] * self.num_unets))
 
-        # if self.accelerator.distributed_type == DistributedType.DEEPSPEED and decoder.clip is not None:
-        #     # Then we need to make sure clip is using the correct precision or else deepspeed will error
-        #     cast_type_map = {
-        #         "fp16": torch.half,
-        #         "bf16": torch.bfloat16,
-        #         "no": torch.float
-        #     }
-        #     precision_type = cast_type_map[accelerator.mixed_precision]
-        #     assert precision_type == torch.float, "DeepSpeed currently only supports float32 precision when using on the fly embedding generation from clip"
-        #     clip = decoder.clip
-        #     clip.to(precision_type)
+        if self.accelerator.distributed_type == DistributedType.DEEPSPEED and decoder.clip is not None:
+            # Then we need to make sure clip is using the correct precision or else deepspeed will error
+            cast_type_map = {
+                "fp16": torch.half,
+                "bf16": torch.bfloat16,
+                "no": torch.float
+            }
+            precision_type = cast_type_map[accelerator.mixed_precision]
+            assert precision_type == torch.float, "DeepSpeed currently only supports float32 precision when using on the fly embedding generation from clip"
+            clip = decoder.clip
+            clip.to(precision_type)
 
-        # decoder, *optimizers = list(self.accelerator.prepare(decoder, *optimizers))
+        decoder, *optimizers = list(self.accelerator.prepare(decoder, *optimizers))
 
         self.decoder = decoder
 
@@ -527,8 +527,7 @@ class DecoderTrainer(nn.Module):
 
         train_loader = val_loader = None
         if exists(dataloaders):
-            # train_loader, val_loader = self.accelerator.prepare(dataloaders["train"], dataloaders["val"])
-            train_loader, val_loader = dataloaders["train"], dataloaders["val"]
+            train_loader, val_loader = self.accelerator.prepare(dataloaders["train"], dataloaders["val"])
 
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -564,8 +563,7 @@ class DecoderTrainer(nn.Module):
         path.parent.mkdir(parents = True, exist_ok = True)
 
         save_obj = dict(
-            # model = self.accelerator.unwrap_model(self.decoder).state_dict(),
-            model = self.decoder.state_dict(),
+            model = self.accelerator.unwrap_model(self.decoder).state_dict(),
             version = __version__,
             steps = self.steps.cpu(),
             **kwargs
@@ -586,16 +584,13 @@ class DecoderTrainer(nn.Module):
         if self.use_ema:
             save_obj = {**save_obj, 'ema': self.ema_unets.state_dict()}
 
-        # self.accelerator.save(save_obj, str(path))
-        torch.save(save_obj, str(path))
+        self.accelerator.save(save_obj, str(path))
 
     def load_state_dict(self, loaded_obj, only_model = False, strict = True):
         if version.parse(__version__) != version.parse(loaded_obj['version']):
-            # self.accelerator.print(f'loading saved decoder at version {loaded_obj["version"]}, but current package version is {__version__}')
-            print(f'loading saved decoder at version {loaded_obj["version"]}, but current package version is {__version__}')
+            self.accelerator.print(f'loading saved decoder at version {loaded_obj["version"]}, but current package version is {__version__}')
 
-        # self.accelerator.unwrap_model(self.decoder).load_state_dict(loaded_obj['model'], strict = strict)
-        self.decoder.load_state_dict(loaded_obj['model'], strict = strict)
+        self.accelerator.unwrap_model(self.decoder).load_state_dict(loaded_obj['model'], strict = strict)
         self.steps.copy_(loaded_obj['steps'])
 
         if only_model:
@@ -652,9 +647,8 @@ class DecoderTrainer(nn.Module):
         scheduler = getattr(self, f'sched{index}')
 
         if exists(self.max_grad_norm):
-            # self.accelerator.clip_grad_norm_(self.decoder.parameters(), self.max_grad_norm)  # Automatically unscales gradients
-            torch.nn.utils.clip_grad_norm_(self.decoder.parameters(), self.max_grad_norm)  # Automatically unscales gradients
-            
+            self.accelerator.clip_grad_norm_(self.decoder.parameters(), self.max_grad_norm)  # Automatically unscales gradients
+
         optimizer.step()
         optimizer.zero_grad()
 
@@ -674,8 +668,8 @@ class DecoderTrainer(nn.Module):
     @cast_torch_tensor
     @decoder_sample_in_chunks
     def sample(self, *args, **kwargs):
-        distributed = False #self.accelerator.num_processes > 1
-        base_decoder = self.decoder #self.accelerator.unwrap_model(self.decoder)
+        distributed = self.accelerator.num_processes > 1
+        base_decoder = self.accelerator.unwrap_model(self.decoder)
 
         was_training = base_decoder.training
         base_decoder.eval()
@@ -685,8 +679,7 @@ class DecoderTrainer(nn.Module):
             base_decoder.train(was_training)
             return out
 
-        # trainable_unets = self.accelerator.unwrap_model(self.decoder).unets
-        trainable_unets = self.decoder.unets
+        trainable_unets = self.accelerator.unwrap_model(self.decoder).unets
         base_decoder.unets = self.unets                  # swap in exponential moving averaged unets for sampling
 
         output = base_decoder.sample(*args, **kwargs, distributed = distributed)
@@ -704,15 +697,13 @@ class DecoderTrainer(nn.Module):
     @cast_torch_tensor
     @prior_sample_in_chunks
     def embed_text(self, *args, **kwargs):
-        # return self.accelerator.unwrap_model(self.decoder).clip.embed_text(*args, **kwargs)
-        return self.decoder.clip.embed_text(*args, **kwargs)
+        return self.accelerator.unwrap_model(self.decoder).clip.embed_text(*args, **kwargs)
 
     @torch.no_grad()
     @cast_torch_tensor
     @prior_sample_in_chunks
     def embed_image(self, *args, **kwargs):
-        # return self.accelerator.unwrap_model(self.decoder).clip.embed_image(*args, **kwargs)
-        return self.decoder.clip.embed_image(*args, **kwargs)
+        return self.accelerator.unwrap_model(self.decoder).clip.embed_image(*args, **kwargs)
 
     @cast_torch_tensor
     def forward(
@@ -728,23 +719,22 @@ class DecoderTrainer(nn.Module):
         total_loss = 0.
         cond_images = []
         for chunk_size_frac, (chunked_args, chunked_kwargs) in split_args_and_kwargs(*args, split_size = max_batch_size, **kwargs):
-            # with self.accelerator.autocast():
-            loss_obj = self.decoder(*chunked_args, unet_number = unet_number, return_lowres_cond_image=return_lowres_cond_image, **chunked_kwargs)
-            # loss_obj may be a tuple with loss and cond_image
-            if return_lowres_cond_image:
-                loss, cond_image = loss_obj
-            else:
-                loss = loss_obj
-                cond_image = None
-            loss = loss * chunk_size_frac
-            if cond_image is not None:
-                cond_images.append(cond_image)
+            with self.accelerator.autocast():
+                loss_obj = self.decoder(*chunked_args, unet_number = unet_number, return_lowres_cond_image=return_lowres_cond_image, **chunked_kwargs)
+                # loss_obj may be a tuple with loss and cond_image
+                if return_lowres_cond_image:
+                    loss, cond_image = loss_obj
+                else:
+                    loss = loss_obj
+                    cond_image = None
+                loss = loss * chunk_size_frac
+                if cond_image is not None:
+                    cond_images.append(cond_image)
 
             total_loss += loss.item()
 
             if self.training:
-                loss.backward()
-                # self.accelerator.backward(loss)
+                self.accelerator.backward(loss)
 
         if return_lowres_cond_image:
             return total_loss, torch.stack(cond_images)

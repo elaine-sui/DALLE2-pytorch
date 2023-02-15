@@ -2460,7 +2460,7 @@ class LowresConditioner(nn.Module):
 class Decoder(nn.Module):
     def __init__(
         self,
-        unet,
+        unets,
         *,
         clip = None,
         image_size = None,
@@ -2539,7 +2539,8 @@ class Decoder(nn.Module):
 
         # verify conditioning method
 
-        unets = cast_tuple(unet)
+        unets = cast_tuple(unets)
+        unets = [Unet(**unet) for unet in unets]
         num_unets = len(unets)
         self.num_unets = num_unets
 
@@ -2610,7 +2611,7 @@ class Decoder(nn.Module):
         if not exists(beta_schedule):
             beta_schedule = ('cosine', *(('cosine',) * max(num_unets - 2, 0)), *(('linear',) * int(num_unets > 1)))
 
-        beta_schedule = cast_tuple(beta_schedule, num_unets)
+        beta_schedule = tuple(beta_schedule) # doesn't convert type correctly cast_tuple(beta_schedule, num_unets)
         p2_loss_weight_gamma = cast_tuple(p2_loss_weight_gamma, num_unets)
 
         self.noise_schedulers = nn.ModuleList([])
