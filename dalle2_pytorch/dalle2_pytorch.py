@@ -2540,7 +2540,10 @@ class Decoder(nn.Module):
         # verify conditioning method
 
         unets = cast_tuple(unets)
-        unets = [Unet(**unet) for unet in unets]
+        try: # for omegaconf
+            unets = [Unet(**unet) for unet in unets]
+        except: # for json config
+            unets = unets
         num_unets = len(unets)
         self.num_unets = num_unets
 

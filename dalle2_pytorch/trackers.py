@@ -99,6 +99,7 @@ class WandbLogger(BaseLogger):
         wandb_project: str,
         wandb_run_id: Optional[str] = None,
         wandb_run_name: Optional[str] = None,
+        save_dir: Optional[str] = None,
         **kwargs
     ):
         super().__init__(data_path, **kwargs)
@@ -106,6 +107,7 @@ class WandbLogger(BaseLogger):
         self.project = wandb_project
         self.run_id = wandb_run_id
         self.run_name = wandb_run_name
+        self.save_dir = save_dir
 
     def init(self, full_config: BaseModel, extra_config: dict, **kwargs) -> None:
         assert self.entity is not None, "wandb_entity must be specified for wandb logger"
@@ -117,6 +119,7 @@ class WandbLogger(BaseLogger):
             "entity": self.entity,
             "project": self.project,
             # "config": {**full_config.dict(), **extra_config}
+            "dir": self.save_dir,
             "config": {**full_config, **extra_config}
         }
         if self.run_name is not None:
@@ -529,14 +532,14 @@ class Tracker:
         elif save_type == 'model':
             if isinstance(trainer, DiffusionPriorTrainer):
                 prior = trainer.ema_diffusion_prior.ema_model if trainer.use_ema else trainer.diffusion_prior
-                prior: DiffusionPrior = trainer.accelerator.unwrap_model(prior)
+                prior: DiffusionPrior = prior #trainer.accelerator.unwrap_model(prior)
                 # Remove CLIP if it is part of the model
                 original_clip = prior.clip
                 prior.clip = None
                 model_state_dict = prior.state_dict()
                 prior.clip = original_clip
             elif isinstance(trainer, DecoderTrainer):
-                decoder: Decoder = trainer.accelerator.unwrap_model(trainer.decoder)
+                decoder: Decoder = trainer.decoder #trainer.accelerator.unwrap_model(trainer.decoder)
                 # Remove CLIP if it is part of the model
                 original_clip = decoder.clip
                 decoder.clip = None
@@ -565,8 +568,12 @@ class Tracker:
             return
         # Save the checkpoint and model to data_path
         checkpoint_path = self.data_path / 'checkpoint.pth'
+        print("="*80)
+        print(f"Saving checkpoint to: {checkpoint_path}")
         self._save_state_dict(trainer, 'checkpoint', checkpoint_path, **kwargs)
         model_path = self.data_path / 'model.pth'
+        print(f"Saving model to: {model_path}")
+        print("="*80)
         self._save_state_dict(trainer, 'model', model_path, **kwargs)
         print("Saved cached models")
         # Call the save methods on the savers

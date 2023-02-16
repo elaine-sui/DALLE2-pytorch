@@ -160,10 +160,14 @@ class CocoDataset(Dataset):
         img_path = self.images[img_id]["img_path"]
         image = io.imread(img_path)
         image = self.transform(Image.fromarray(image))
+        
+        if image.shape[0] != 3:
+            image = image.repeat((3, 1, 1))
+        
         # image = self.preprocess_img(Image.fromarray(image))
         
         txt = self.captions[item]['caption']
-            
+        
         return (image, embed, txt)
     
 ## To get stuff:

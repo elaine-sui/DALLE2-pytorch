@@ -81,8 +81,6 @@ def parse_configs():
         
     if args.checkpoint is not None:
         cfg.checkpoint = args.checkpoint
-        if 'train+restval' in cfg.checkpoint:
-            cfg.experiment_name += "_stage1_train+restval"
     
     cfg.data.normalize_embed = False
     if args.normalize_embed is not None:
@@ -129,7 +127,8 @@ def create_directories(cfg):
     cfg.tracker.log.wandb_run_name = (
         f"{cfg.experiment_name}/{cfg.extension}"
     )
-    cfg.tracker.data_path = f"{DATA_PREFIX}/data/{cfg.data.dataset}/ckpt/{cfg.experiment_name}/{cfg.extension}"
+    cfg.tracker.data_path = f"{DATA_PREFIX}/data/dalle2/{cfg.data.dataset}/ckpt/{cfg.experiment_name}/{cfg.extension}"
+    cfg.tracker.save.save_latest_to = f"{cfg.tracker.data_path}/{cfg.tracker.save.save_latest_to}"
 
     # create directories
     if not os.path.exists(cfg.tracker.data_path):
@@ -391,6 +390,7 @@ def train(
 
         if next_task == 'train':
             for i, (img, emb, txt) in enumerate(dataloaders["train"]):
+                # import pdb; pdb.set_trace()
                 # We want to count the total number of samples across all processes
                 sample_length_tensor[0] = len(img)
                 all_samples = sample_length_tensor

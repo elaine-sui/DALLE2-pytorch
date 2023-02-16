@@ -35,4 +35,5 @@ dependencies:
    - omegaconf==2.1.1
    - transformers
    - pytorch_lightning
+   - git+https://github.com/openai/CLIP.git
 prefix: /pasteur/u/esui/miniconda3/envs/dalle2
