@@ -98,6 +98,8 @@ def parse_configs():
     cfg.data.remove_mean = args.remove_mean
     if args.remove_mean:
         cfg.experiment_name += f"_remove_mean"
+        
+    cfg.experiment_name += f"_{cfg.encoder.modality.lower()}_input"
 
     cfg.test_split = args.test_split
     

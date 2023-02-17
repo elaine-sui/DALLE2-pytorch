@@ -136,13 +136,17 @@ class CocoDataset(Dataset):
     def __getitem__(self, item: int) -> Tuple[torch.Tensor, ...]:
         # (img, emb, txt), where emb = {"img": ...}
         
-        item = self.cap_ids[item]
-        img_id = self.caption_id_2_image_id[item]
-        
-        if self.input_modality == Modality.Vision:
+        if self.input_modality == Modality.Language:
+            item = self.cap_ids[item]
+            img_id = self.caption_id_2_image_id[item]
+            embed = self.captions[item]["embed"]
+            txt = self.captions[item]['caption']
+        elif self.input_modality == Modality.Vision:
+            img_id = self.img_ids[item]
             embed = self.images[img_id]["embed"]
+            txt = ''
         else:
-            embed = self.images[img_id]["embed"]
+            raise NotImplementedError(f"input modality {input_modality} not implemented!")
         
         if self.normalize_embed:
             embed = embed.float()
@@ -165,8 +169,6 @@ class CocoDataset(Dataset):
             image = image.repeat((3, 1, 1))
         
         # image = self.preprocess_img(Image.fromarray(image))
-        
-        txt = self.captions[item]['caption']
         
         return (image, embed, txt)
     
