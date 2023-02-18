@@ -82,9 +82,9 @@ def parse_configs():
     if args.checkpoint is not None:
         cfg.checkpoint = args.checkpoint
     
-    cfg.data.normalize_embed = False
     if args.normalize_embed is not None:
         cfg.data.normalize_embed = args.normalize_embed
+    if cfg.data.normalize_embed:
         cfg.experiment_name += "_normed"
             
     cfg.data.sample_frac = args.sample_frac 
