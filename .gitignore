@@ -1,6 +1,8 @@
 # default experiment tracker data
 .tracker-data/
 wandb/
+lightning_logs/
+log-*.out
 # Configuration Files
 configs/*
 !configs/*.example
