@@ -5,15 +5,18 @@ import pickle
 import os
 import torch
 import torch.nn.functional as F
-from sklearn.manifold import TSNE
+# from sklearn.manifold import TSNE
 import argparse
 
-from src.constants import AVG_OUTPUT_EMBED_FOLDER, COMBINED_PATH, DATA_PATH
+from src.constants import COMBINED_PATH, DATA_PATH
+
+AVG_OUTPUT_EMBED_FOLDER = f"./data/dalle2/coco_prior_output_ViT-L_14_train_mini_avg_100x50"
 
 def get_parser_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--combine_embeds", action="store_true")
     parser.add_argument("--reformat_features", action="store_true")
+    parser.add_argument("--reformat_features_all", action="store_true")
     
     args = parser.parse_args()
     return args
@@ -43,7 +46,44 @@ def combine_embeds():
     print("len(combined_embeds)", len(combined_embeds))
 
 
+def reformat_features_all():
+    features = {}
+    features_all_path = os.path.join(AVG_OUTPUT_EMBED_FOLDER, 'features_all.pt')
+    
+    with open(DATA_PATH, 'rb') as f:
+        all_data = pickle.load(f)['captions']
+    
+    with open(COMBINED_PATH, 'rb') as f:
+        prior_output_data = pickle.load(f)['diffusion_prior_outputs']
+    
+    all_image_embeds, all_text_embeds, labels = [], [], []
+    
+    for cap_id in prior_output_data:
+        image_embed = prior_output_data[cap_id]['all_embeds'] # (50 x 768)
+        text_embed = all_data[cap_id]['embed'].squeeze() # (768)
+        
+        all_image_embeds.append(image_embed) 
+        all_text_embeds.append(text_embed)
+        labels.append(cap_id)
+    
+    all_image_embeds = torch.stack(all_image_embeds) # (100 x 50 x 768)
+    all_text_embeds = torch.vstack(all_text_embeds)
+    
+    all_image_embeds = all_image_embeds / torch.norm(all_image_embeds, dim=-1, keepdim=True)
+    all_text_embeds = all_text_embeds / torch.norm(all_text_embeds, dim=-1, keepdim=True)
+    
+    labels = torch.as_tensor(labels)
+    
+    features["image_features"] = all_image_embeds
+    features["text_features"] = all_text_embeds
+    features["labels"] = labels
+    
+    with open(features_all_path, 'wb') as f:
+        torch.save(features, f)
+    
+    
 def reformat_features():
+    features = {}
     features_path = os.path.join(AVG_OUTPUT_EMBED_FOLDER, 'features.pt')
     
     with open(DATA_PATH, 'rb') as f:
@@ -66,7 +106,7 @@ def reformat_features():
     all_text_embeds = torch.vstack(all_text_embeds)
     
     all_image_embeds = all_image_embeds / torch.norm(all_image_embeds, dim=-1, keepdim=True)
-    all_text_embeds = all_text_embeds / torch.norm(all_image_embeds, dim=-1, keepdim=True)
+    all_text_embeds = all_text_embeds / torch.norm(all_text_embeds, dim=-1, keepdim=True)
     
     labels = torch.as_tensor(labels)
     
@@ -105,6 +145,9 @@ if __name__ == '__main__':
     
     if args.reformat_features:
         reformat_features()
+    
+    if args.reformat_features_all:
+        reformat_features_all()
             
         
         
