@@ -15,5 +15,5 @@ dependencies:
    - tqdm
    - pytorch_lightning
    - seaborn
-prefix: ./miniconda3/envs/dalle2_prior
+prefix: /pasteur/u/esui/data/miniconda3/envs/dalle2_prior
 
