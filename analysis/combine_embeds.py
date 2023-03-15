@@ -8,9 +8,7 @@ import torch.nn.functional as F
 # from sklearn.manifold import TSNE
 import argparse
 
-from src.constants import COMBINED_PATH, DATA_PATH
-
-AVG_OUTPUT_EMBED_FOLDER = f"./data/dalle2/coco_prior_output_ViT-L_14_train_mini_avg_100x50"
+from src.constants import AVG_OUTPUT_EMBED_FOLDER, COMBINED_PATH, DATA_PATH
 
 def get_parser_args():
     parser = argparse.ArgumentParser()
